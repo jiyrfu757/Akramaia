@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       torrent_url:
-        description: 'Paste YTS Link Here'
+        description: 'YTS Torrent Link'
         required: true
       file_name:
-        description: 'Output Name (e.g. movie.mp4)'
+        description: 'Output Name'
         required: true
         default: 'video.mp4'
 
@@ -21,25 +21,26 @@ jobs:
           sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: Download & Upload
+      - name: Turbo Download
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python3 -c "
-          import os, re, subprocess
+          import os, subprocess
           from huggingface_hub import HfApi
           
-          # ١. وەرگرتنی هاش (Hash) لە ناو لینکەکە بۆ دروستکردنی مەگنێت
           url = '${{ github.event.inputs.torrent_url }}'
           torrent_hash = url.split('/')[-1]
-          magnet = f'magnet:?xt=urn:btih:{torrent_hash}'
           
-          print(f'🚀 Starting Turbo Download for Hash: {torrent_hash}')
+          # ئەم لیستە وا دەکات لە هەموو جیهان بگەڕێت بۆ دۆزینەوەی ئەو کەسانەی فیلمەکەیان لایە
+          trackers = '&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://9.rarbg.com:2810/announce&tr=udp://tracker.openbittorrent.com:6969/announce&tr=http://tracker.openbittorrent.com:80/announce&tr=udp://opentracker.i2p.rocks:6969/announce'
+          magnet = f'magnet:?xt=urn:btih:{torrent_hash}{trackers}'
           
-          # ٢. داگرتن بە بەکارهێنانی مەگنێت (بۆ ئەوەی تووشی Error 7 نەبین)
-          subprocess.run(['aria2c', '--allow-overwrite=true', '--file-allocation=none', '--seed-time=0', '-x', '16', '-s', '16', magnet])
+          print('🔍 Searching for seeds in global trackers...')
+          
+          # زیادکردنی کاتی چاوەڕوانی بۆ 10 خولەک بۆ ئەوەی کاتی هەبێت خەڵک بدۆزێتەوە
+          subprocess.run(['aria2c', '--allow-overwrite=true', '--bt-stop-timeout=600', '--file-allocation=none', '--seed-time=0', magnet])
 
-          # ٣. دۆزینەوەی فایلە گەورەکە و ناردن
           api = HfApi()
           repo_id = 'Sarkoakram/sarko761'
           target = '${{ github.event.inputs.file_name }}'
@@ -47,9 +48,8 @@ jobs:
           files = [os.path.join(r, f) for r, d, fs in os.walk('.') for f in fs if f.endswith(('.mp4', '.mkv'))]
           if files:
               video = max(files, key=os.path.getsize)
-              print(f'📤 Sending {video} to Hugging Face...')
               api.upload_file(path_or_fileobj=video, path_in_repo=target, repo_id=repo_id, token=os.getenv('HF_TOKEN'))
               print('✅ Done!')
           else:
-              print('❌ No video file found. The torrent might be dead.')
+              print('❌ No one in the world is sharing this file right now.')
           "
