@@ -3,12 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'Direct Link (Seedr)'
+        description: 'Direct Link (Any TV Pro / Seedr)'
         required: true
       file_name:
         description: 'ناوی فایلەکە لەناو Hugging Face'
         required: true
-        default: 'video_from_seedr.mp4'
+        default: 'video_from_server.mp4'
 
 jobs:
   upload_job:
@@ -22,8 +22,11 @@ jobs:
 
       - name: ⬇️ Fast Download
         run: |
-          # بەکارهێنانی aria2 بۆ داگرتنی خێرا ڕێک وەک کۆدەکەی خۆت
-          aria2c --max-connection-per-server=16 --split=16 -o "video.mp4" "${{ github.event.inputs.video_url }}"
+          # زیادکردنی User-Agent بۆ ئەوەی سێرڤەرەکە ڕێگری لێنەکات
+          aria2c --max-connection-per-server=16 \
+                 --split=16 \
+                 --user-agent="Any Tv Pro/2.23 (Android OS)" \
+                 -o "video.mp4" "${{ github.event.inputs.video_url }}"
 
       - name: 🚀 Upload to Hugging Face
         env:
@@ -33,7 +36,6 @@ jobs:
           import os
           from huggingface_hub import HfApi
           
-          # وەرگرتنی تۆکن لە سێتیتنگس
           token = os.getenv('HF_TOKEN')
           if not token:
               print('❌ Error: HF_TOKEN is missing in GitHub Secrets!')
