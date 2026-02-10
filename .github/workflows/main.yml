@@ -1,26 +1,27 @@
-name: Direct MP4 to HuggingFace
+name: Turbo Direct Downloader
 
 on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'لینکی ڕاستەوخۆی MP4 لێرە دابنێ'
+        description: 'Direct MP4 Link'
         required: true
       file_name:
-        description: 'ناوێک بۆ فیلمەکە (نموونە: movie.mp4)'
+        description: 'File Name (e.g. movie.mp4)'
         required: true
-        default: 'video_file.mp4'
+        default: 'video.mp4'
 
 jobs:
-  download_job:
+  turbo_job:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Tools
+      - name: Install High-Speed Tools
         run: |
           sudo apt-get update -qq
+          sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: Download and Upload
+      - name: Extreme Speed Download & Upload
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -28,25 +29,36 @@ jobs:
           import os, subprocess
           from huggingface_hub import HfApi
           
-          video_url = '${{ github.event.inputs.video_url }}'
-          file_name = '${{ github.event.inputs.file_name }}'
-          repo_id = 'Sarkoakram/sarko761'
+          url = '${{ github.event.inputs.video_url }}'
+          name = '${{ github.event.inputs.file_name }}'
           
-          print(f'📥 دەستکرا بە داگرتنی ڤیدیۆکە...')
-          # بەکارهێنانی wget بۆ داگرتنی ڕاستەوخۆ
-          res = subprocess.run(['wget', '-q', '--show-progress', '-O', 'temp_video.mp4', video_url])
+          print('🚀 Starting Extreme Speed Download...')
           
-          if res.returncode == 0 and os.path.exists('temp_video.mp4'):
-              print(f'📤 ناردن بۆ Hugging Face...')
+          # بەکارهێنانی aria2 بە 16 پەیوەندی هاوکات بۆ بەرزترین خێرایی
+          # زیادکردنی User-Agent بۆ ئەوەی وەک بڕاوسەر دەربکەوێت
+          cmd = [
+              'aria2c', 
+              '--allow-overwrite=true',
+              '-x', '16', 
+              '-s', '16', 
+              '-k', '1M',
+              '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              '-o', 'fast_video.mp4',
+              url
+          ]
+          
+          res = subprocess.run(cmd)
+          
+          if res.returncode == 0 and os.path.exists('fast_video.mp4'):
+              print('📤 Uploading to Hugging Face at server speed...')
               api = HfApi()
               api.upload_file(
-                  path_or_fileobj='temp_video.mp4',
-                  path_in_repo=file_name,
-                  repo_id=repo_id,
-                  repo_type='dataset',
+                  path_or_fileobj='fast_video.mp4',
+                  path_in_repo=name,
+                  repo_id='Sarkoakram/sarko761',
                   token=os.getenv('HF_TOKEN')
               )
-              print('✅ کارەکە بە سەرکەوتوویی تەواو بوو!')
+              print('✅ EVERYTHING DONE IN RECORD TIME!')
           else:
-              print('❌ هەڵە لە داگرتنی لینکەکەدا هەیە. دڵنیابەرەوە لینکەکە MP4 ڕاستەوخۆیە.')
+              print('❌ Error: The link from Seedr expired or blocked the server. Please get a fresh link!')
           "
