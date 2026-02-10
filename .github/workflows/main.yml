@@ -1,27 +1,26 @@
-name: Super Fast Torrent Fix
+name: Direct MP4 to HuggingFace
 
 on:
   workflow_dispatch:
     inputs:
-      torrent_url:
-        description: 'YTS Torrent Link'
+      video_url:
+        description: 'لینکی ڕاستەوخۆی MP4 لێرە دابنێ'
         required: true
       file_name:
-        description: 'Output Name'
+        description: 'ناوێک بۆ فیلمەکە (نموونە: movie.mp4)'
         required: true
-        default: 'video.mp4'
+        default: 'video_file.mp4'
 
 jobs:
-  fast_job:
+  download_job:
     runs-on: ubuntu-latest
     steps:
       - name: Install Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: Turbo Download
+      - name: Download and Upload
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -29,27 +28,25 @@ jobs:
           import os, subprocess
           from huggingface_hub import HfApi
           
-          url = '${{ github.event.inputs.torrent_url }}'
-          torrent_hash = url.split('/')[-1]
-          
-          # ئەم لیستە وا دەکات لە هەموو جیهان بگەڕێت بۆ دۆزینەوەی ئەو کەسانەی فیلمەکەیان لایە
-          trackers = '&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://9.rarbg.com:2810/announce&tr=udp://tracker.openbittorrent.com:6969/announce&tr=http://tracker.openbittorrent.com:80/announce&tr=udp://opentracker.i2p.rocks:6969/announce'
-          magnet = f'magnet:?xt=urn:btih:{torrent_hash}{trackers}'
-          
-          print('🔍 Searching for seeds in global trackers...')
-          
-          # زیادکردنی کاتی چاوەڕوانی بۆ 10 خولەک بۆ ئەوەی کاتی هەبێت خەڵک بدۆزێتەوە
-          subprocess.run(['aria2c', '--allow-overwrite=true', '--bt-stop-timeout=600', '--file-allocation=none', '--seed-time=0', magnet])
-
-          api = HfApi()
+          video_url = '${{ github.event.inputs.video_url }}'
+          file_name = '${{ github.event.inputs.file_name }}'
           repo_id = 'Sarkoakram/sarko761'
-          target = '${{ github.event.inputs.file_name }}'
           
-          files = [os.path.join(r, f) for r, d, fs in os.walk('.') for f in fs if f.endswith(('.mp4', '.mkv'))]
-          if files:
-              video = max(files, key=os.path.getsize)
-              api.upload_file(path_or_fileobj=video, path_in_repo=target, repo_id=repo_id, token=os.getenv('HF_TOKEN'))
-              print('✅ Done!')
+          print(f'📥 دەستکرا بە داگرتنی ڤیدیۆکە...')
+          # بەکارهێنانی wget بۆ داگرتنی ڕاستەوخۆ
+          res = subprocess.run(['wget', '-q', '--show-progress', '-O', 'temp_video.mp4', video_url])
+          
+          if res.returncode == 0 and os.path.exists('temp_video.mp4'):
+              print(f'📤 ناردن بۆ Hugging Face...')
+              api = HfApi()
+              api.upload_file(
+                  path_or_fileobj='temp_video.mp4',
+                  path_in_repo=file_name,
+                  repo_id=repo_id,
+                  repo_type='dataset',
+                  token=os.getenv('HF_TOKEN')
+              )
+              print('✅ کارەکە بە سەرکەوتوویی تەواو بوو!')
           else:
-              print('❌ No one in the world is sharing this file right now.')
+              print('❌ هەڵە لە داگرتنی لینکەکەدا هەیە. دڵنیابەرەوە لینکەکە MP4 ڕاستەوخۆیە.')
           "
