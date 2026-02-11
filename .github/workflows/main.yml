@@ -3,12 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'Direct Link (Any TV Pro / Seedr)'
+        description: 'لینکی ڤیدیۆکە (ئەو لینکەی تۆکنەکەی تێدایە)'
         required: true
       file_name:
-        description: 'ناوی فایلەکە لەناو Hugging Face'
+        description: 'ناوی فایلەکە لە Hugging Face'
         required: true
-        default: 'video_from_server.mp4'
+        default: 'movie_from_server.mp4'
 
 jobs:
   upload_job:
@@ -17,24 +17,23 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
-          # دڵنیابوونەوە لە هەبوونی پێداویستییەکان
-          sudo apt-get install -y curl -qq
+          sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: ⬇️ Stealth Download
+      - name: ⬇️ Fast Download
         run: |
-          # بەکارهێنانی curl بە هەموو ئەو Headerانەی کە ئەپە ڕاستەقینەکە بەکاریان دەهێنێت
-          # بەکارهێنانی -L بۆ ئەوەی ئەگەر Redirect هەبوو دوای بکەوێت
-          # بەکارهێنانی --referer بۆ ئەوەی سێرڤەرەکە وا بزانێت لە ناوخۆی خۆیەوەیە
-          curl -v -L \
-            -H "User-Agent: Any Tv Pro/2.23 (Android OS)" \
-            -H "Icy-MetaData: 1" \
-            -H "Accept: */*" \
-            -H "Connection: Keep-Alive" \
-            -H "Accept-Encoding: identity" \
-            -e "http://anytvpro.cc:8080/" \
-            -o "video.mp4" \
-            "${{ github.event.inputs.video_url }}"
+          # بەکارهێنانی aria2 بە فێڵەوە بۆ تێپەڕاندنی بلۆک
+          aria2c --max-connection-per-server=16 \
+                 --split=16 \
+                 --min-split-size=1M \
+                 --user-agent="Any Tv Pro/2.23 (Android OS)" \
+                 --header="Icy-MetaData: 1" \
+                 --header="Connection: Keep-Alive" \
+                 --header="Accept: */*" \
+                 --header="Accept-Encoding: identity" \
+                 --retry-wait=5 \
+                 -m 10 \
+                 -o "video.mp4" "${{ github.event.inputs.video_url }}"
 
       - name: 🚀 Upload to Hugging Face
         env:
@@ -64,6 +63,6 @@ jobs:
               )
               print('✅ Done! Check your Hugging Face repo.')
           else:
-              print('❌ Error: File video.mp4 was not downloaded correctly or is empty!')
+              print('❌ Error: Download failed or file is empty!')
               exit(1)
           "
