@@ -1,54 +1,66 @@
-name: Direct_To_HuggingFace_Fast
+name: Ultimate_Stealth_Upload
 on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'لینکی ڤیدیۆکە (تۆکن دار)'
+        description: 'http://31.42.176.82:8080/movie/233960290645/698bbf8a46ffa.36786/72880.mp4?token=Ucdad.yyXbHfb.X.X.ydHbdHHXUf.X.y.IQ.mp4.50335f05f6cf7e20cb2a292c5f2e0c95097e2993b73bb34d1499687d62d614fb'
         required: true
-      file_name:
-        description: 'ناوی فایلەکە'
-        required: true
-        default: 'movie_72880.mp4'
 
 jobs:
-  upload_job:
+  bypass_and_upload:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ Setup
-        run: pip install -q huggingface_hub
+      - name: 🏗️ Setup Tools
+        run: pip install -q huggingface_hub requests
 
-      - name: ⬇️ High-Level Stealth Download
-        run: |
-          # بەکارهێنانی curl بە فێڵی Host و Referer
-          # هێمای " " لە دەوری لینکەکە زۆر گرنگە چونکە تۆکنەکە نیشانەی ? و . ی تێدایە
-          curl -v -L \
-            -H "User-Agent: Any Tv Pro/2.23 (Android OS)" \
-            -H "Host: 31.42.176.82:8080" \
-            -H "Connection: keep-alive" \
-            -H "Accept: */*" \
-            -H "Icy-MetaData: 1" \
-            -e "http://anytvpro.cc:8080/" \
-            -o "video.mp4" \
-            "${{ github.event.inputs.video_url }}"
-
-      - name: 🚀 Upload to HF
+      - name: 🕵️ Stealth Download & Stream
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python3 -c "
+          import requests
           import os
           from huggingface_hub import HfApi
-          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 1000000:
-              api = HfApi()
-              api.upload_file(
-                  path_or_fileobj='video.mp4',
-                  path_in_repo='${{ github.event.inputs.file_name }}',
-                  repo_id='Sarkoakram/sarko761',
-                  repo_type='dataset',
-                  token=os.getenv('HF_TOKEN')
-              )
-              print('✅ سەرکەوتوو بوو!')
-          else:
-              print('❌ شکستی هێنا: فایلەکە یان دروست نەبووە یان قەبارەکەی زۆر بچووکە (401/403 Error)')
+
+          # زانیارییەکان
+          URL = \"${{ github.event.inputs.video_url }}\"
+          REPO_ID = \"Sarkoakram/sarko761\"
+          TOKEN = os.getenv('HF_TOKEN')
+
+          # فێڵی Header بۆ ئەوەی وەک ئەپەکە دەربکەوین
+          headers = {
+              'User-Agent': 'Any Tv Pro/2.23 (Android OS)',
+              'Accept': '*/*',
+              'Accept-Encoding': 'identity',
+              'Icy-MetaData': '1',
+              'Connection': 'Keep-Alive',
+              'Referer': 'http://anytvpro.cc:8080/'
+          }
+
+          print('🚀 هەوڵی داگرتن دەدەین بە فێڵی Header...')
+          
+          try:
+              # بەکارهێنانی Session بۆ جێگیرکردنی پەیوەندییەکە
+              session = requests.Session()
+              with session.get(URL, headers=headers, stream=True, timeout=60) as r:
+                  if r.status_code == 200:
+                      print('✅ سێرڤەرەکە ڕێگەی دا! دەستمان کرد بە ناردن بۆ Hugging Face...')
+                      
+                      api = HfApi()
+                      # ناردنی ڕاستەوخۆ (Stream) بۆ ئەوەی کات نەڕوات
+                      api.upload_file(
+                          path_or_fileobj=r.raw,
+                          path_in_repo='movie_success_' + str(os.urandom(2).hex()) + '.mp4',
+                          repo_id=REPO_ID,
+                          repo_type='dataset',
+                          token=TOKEN
+                      )
+                      print('🎉 پیرۆزە! کارەکە بە سەرکەوتوویی کۆتایی هات.')
+                  else:
+                      print(f'❌ سێرڤەرەکە دیسان ڕەتی کردەوە. Status: {r.status_code}')
+                      print('⚠️ تێبینی: سێرڤەرەکە ڕێگە نادات هیچ ئایپییەکی دەرەکی دەستی بە فایلەکە بگات.')
+                      exit(1)
+          except Exception as e:
+              print(f'⚠️ هەڵەیەکی چاوەڕواننەکراو: {e}')
               exit(1)
           "
