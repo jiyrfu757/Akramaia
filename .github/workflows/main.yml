@@ -3,12 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'لینکی ڤیدیۆکە (ئەو لینکەی تۆکنەکەی تێدایە)'
+        description: 'لینکی نوێی فیلمەکە'
         required: true
       file_name:
-        description: 'ناوی فایلەکە لە Hugging Face'
+        description: 'ناوی فایلەکە'
         required: true
-        default: 'movie_from_server.mp4'
+        default: 'movie_fixed.mp4'
 
 jobs:
   upload_job:
@@ -17,23 +17,22 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: ⬇️ Fast Download
+      - name: ⬇️ Final Stealth Attempt
         run: |
-          # بەکارهێنانی aria2 بە فێڵەوە بۆ تێپەڕاندنی بلۆک
-          aria2c --max-connection-per-server=16 \
-                 --split=16 \
-                 --min-split-size=1M \
-                 --user-agent="Any Tv Pro/2.23 (Android OS)" \
-                 --header="Icy-MetaData: 1" \
-                 --header="Connection: Keep-Alive" \
-                 --header="Accept: */*" \
-                 --header="Accept-Encoding: identity" \
-                 --retry-wait=5 \
-                 -m 10 \
-                 -o "video.mp4" "${{ github.event.inputs.video_url }}"
+          # بەکارهێنانی curl بە فۆرماتێکی زۆر پێشکەوتوو
+          curl -v -L -k \
+            -H "User-Agent: Any Tv Pro/2.23 (Android OS)" \
+            -H "Accept: */*" \
+            -H "Accept-Language: en-US,en;q=0.9" \
+            -H "Connection: keep-alive" \
+            -H "Icy-MetaData: 1" \
+            -H "Range: bytes=0-" \
+            --retry 5 \
+            --retry-delay 2 \
+            -o "video.mp4" \
+            "${{ github.event.inputs.video_url }}"
 
       - name: 🚀 Upload to Hugging Face
         env:
@@ -43,26 +42,17 @@ jobs:
           import os
           from huggingface_hub import HfApi
           
-          token = os.getenv('HF_TOKEN')
-          if not token:
-              print('❌ Error: HF_TOKEN is missing in GitHub Secrets!')
-              exit(1)
-              
-          api = HfApi()
-          repo_id = 'Sarkoakram/sarko761'
-          file_name = '${{ github.event.inputs.file_name }}'
-          
-          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 0:
-              print(f'📤 Sending to Hugging Face: {file_name}...')
+          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 1024:
+              api = HfApi()
               api.upload_file(
                   path_or_fileobj='video.mp4',
-                  path_in_repo=file_name,
-                  repo_id=repo_id,
+                  path_in_repo='${{ github.event.inputs.file_name }}',
+                  repo_id='Sarkoakram/sarko761',
                   repo_type='dataset',
-                  token=token
+                  token=os.getenv('HF_TOKEN')
               )
-              print('✅ Done! Check your Hugging Face repo.')
+              print('✅ سەرکەوتوو بوو!')
           else:
-              print('❌ Error: Download failed or file is empty!')
+              print('❌ شکستی هێنا: سێرڤەرەکە ڕێگەی نەدا فایلەکە دابگیرێت (401/403).')
               exit(1)
           "
