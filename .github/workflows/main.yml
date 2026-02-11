@@ -17,19 +17,23 @@ jobs:
       - name: 🏗️ Setup Tools
         run: |
           sudo apt-get update -qq
-          # دابەزاندنی yt-dlp کە باشترینە بۆ بڕینی بەربەستی سێرڤەرەکان
-          sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-          sudo chmod a+rx /usr/local/bin/yt-dlp
+          # دڵنیابوونەوە لە هەبوونی پێداویستییەکان
+          sudo apt-get install -y curl -qq
           pip install -q huggingface_hub
 
       - name: ⬇️ Stealth Download
         run: |
-          # بەکارهێنانی فێڵی وێبگەڕ و زیادکردنی Headerەکان بە وردی
-          yt-dlp -o "video.mp4" \
-            --user-agent "Any Tv Pro/2.23 (Android OS)" \
-            --add-header "Icy-MetaData:1" \
-            --add-header "Accept-Encoding:identity" \
-            --add-header "Connection:Keep-Alive" \
+          # بەکارهێنانی curl بە هەموو ئەو Headerانەی کە ئەپە ڕاستەقینەکە بەکاریان دەهێنێت
+          # بەکارهێنانی -L بۆ ئەوەی ئەگەر Redirect هەبوو دوای بکەوێت
+          # بەکارهێنانی --referer بۆ ئەوەی سێرڤەرەکە وا بزانێت لە ناوخۆی خۆیەوەیە
+          curl -v -L \
+            -H "User-Agent: Any Tv Pro/2.23 (Android OS)" \
+            -H "Icy-MetaData: 1" \
+            -H "Accept: */*" \
+            -H "Connection: Keep-Alive" \
+            -H "Accept-Encoding: identity" \
+            -e "http://anytvpro.cc:8080/" \
+            -o "video.mp4" \
             "${{ github.event.inputs.video_url }}"
 
       - name: 🚀 Upload to Hugging Face
@@ -49,7 +53,7 @@ jobs:
           repo_id = 'Sarkoakram/sarko761'
           file_name = '${{ github.event.inputs.file_name }}'
           
-          if os.path.exists('video.mp4'):
+          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 0:
               print(f'📤 Sending to Hugging Face: {file_name}...')
               api.upload_file(
                   path_or_fileobj='video.mp4',
@@ -60,6 +64,6 @@ jobs:
               )
               print('✅ Done! Check your Hugging Face repo.')
           else:
-              print('❌ Error: File video.mp4 was not downloaded!')
+              print('❌ Error: File video.mp4 was not downloaded correctly or is empty!')
               exit(1)
           "
