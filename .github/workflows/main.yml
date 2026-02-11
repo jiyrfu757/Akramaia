@@ -1,66 +1,56 @@
-name: Ultimate_Stealth_Upload
+name: Direct_To_HuggingFace_Fast
 on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'http://31.42.176.82:8080/movie/233960290645/698bbf8a46ffa.36786/72880.mp4?token=Ucdad.yyXbHfb.X.X.ydHbdHHXUf.X.y.IQ.mp4.50335f05f6cf7e20cb2a292c5f2e0c95097e2993b73bb34d1499687d62d614fb'
+        description: 'Direct Link (Seedr)'
         required: true
+      file_name:
+        description: 'ناوی فایلەکە لەناو Hugging Face'
+        required: true
+        default: 'video_from_seedr.mp4'
 
 jobs:
-  bypass_and_upload:
+  upload_job:
     runs-on: ubuntu-latest
     steps:
       - name: 🏗️ Setup Tools
-        run: pip install -q huggingface_hub requests
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y aria2 -qq
+          pip install -q huggingface_hub
 
-      - name: 🕵️ Stealth Download & Stream
+      - name: ⬇️ Fast Download
+        run: |
+          # بەکارهێنانی aria2 بۆ داگرتنی خێرا ڕێک وەک کۆدەکەی خۆت
+          aria2c --max-connection-per-server=16 --split=16 -o "video.mp4" "${{ github.event.inputs.video_url }}"
+
+      - name: 🚀 Upload to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python3 -c "
-          import requests
           import os
           from huggingface_hub import HfApi
-
-          # زانیارییەکان
-          URL = \"${{ github.event.inputs.video_url }}\"
-          REPO_ID = \"Sarkoakram/sarko761\"
-          TOKEN = os.getenv('HF_TOKEN')
-
-          # فێڵی Header بۆ ئەوەی وەک ئەپەکە دەربکەوین
-          headers = {
-              'User-Agent': 'Any Tv Pro/2.23 (Android OS)',
-              'Accept': '*/*',
-              'Accept-Encoding': 'identity',
-              'Icy-MetaData': '1',
-              'Connection': 'Keep-Alive',
-              'Referer': 'http://anytvpro.cc:8080/'
-          }
-
-          print('🚀 هەوڵی داگرتن دەدەین بە فێڵی Header...')
           
-          try:
-              # بەکارهێنانی Session بۆ جێگیرکردنی پەیوەندییەکە
-              session = requests.Session()
-              with session.get(URL, headers=headers, stream=True, timeout=60) as r:
-                  if r.status_code == 200:
-                      print('✅ سێرڤەرەکە ڕێگەی دا! دەستمان کرد بە ناردن بۆ Hugging Face...')
-                      
-                      api = HfApi()
-                      # ناردنی ڕاستەوخۆ (Stream) بۆ ئەوەی کات نەڕوات
-                      api.upload_file(
-                          path_or_fileobj=r.raw,
-                          path_in_repo='movie_success_' + str(os.urandom(2).hex()) + '.mp4',
-                          repo_id=REPO_ID,
-                          repo_type='dataset',
-                          token=TOKEN
-                      )
-                      print('🎉 پیرۆزە! کارەکە بە سەرکەوتوویی کۆتایی هات.')
-                  else:
-                      print(f'❌ سێرڤەرەکە دیسان ڕەتی کردەوە. Status: {r.status_code}')
-                      print('⚠️ تێبینی: سێرڤەرەکە ڕێگە نادات هیچ ئایپییەکی دەرەکی دەستی بە فایلەکە بگات.')
-                      exit(1)
-          except Exception as e:
-              print(f'⚠️ هەڵەیەکی چاوەڕواننەکراو: {e}')
+          # وەرگرتنی تۆکن لە سێتیتنگس
+          token = os.getenv('HF_TOKEN')
+          if not token:
+              print('❌ Error: HF_TOKEN is missing in GitHub Secrets!')
               exit(1)
+              
+          api = HfApi()
+          repo_id = 'Sarkoakram/sarko761'
+          file_name = '${{ github.event.inputs.file_name }}'
+          
+          print(f'📤 Sending to Hugging Face: {file_name}...')
+          
+          api.upload_file(
+              path_or_fileobj='video.mp4',
+              path_in_repo=file_name,
+              repo_id=repo_id,
+              repo_type='dataset',
+              token=token
+          )
+          print('✅ Done! Check your Hugging Face repo.')
           "
