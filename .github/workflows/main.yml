@@ -3,46 +3,42 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'لینکی نوێی فیلمەکە'
+        description: 'لینکی ڤیدیۆکە (تۆکن دار)'
         required: true
       file_name:
         description: 'ناوی فایلەکە'
         required: true
-        default: 'movie_fixed.mp4'
+        default: 'movie_72880.mp4'
 
 jobs:
   upload_job:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ Setup Tools
-        run: |
-          sudo apt-get update -qq
-          pip install -q huggingface_hub
+      - name: 🏗️ Setup
+        run: pip install -q huggingface_hub
 
-      - name: ⬇️ Final Stealth Attempt
+      - name: ⬇️ High-Level Stealth Download
         run: |
-          # بەکارهێنانی curl بە فۆرماتێکی زۆر پێشکەوتوو
-          curl -v -L -k \
+          # بەکارهێنانی curl بە فێڵی Host و Referer
+          # هێمای " " لە دەوری لینکەکە زۆر گرنگە چونکە تۆکنەکە نیشانەی ? و . ی تێدایە
+          curl -v -L \
             -H "User-Agent: Any Tv Pro/2.23 (Android OS)" \
-            -H "Accept: */*" \
-            -H "Accept-Language: en-US,en;q=0.9" \
+            -H "Host: 31.42.176.82:8080" \
             -H "Connection: keep-alive" \
+            -H "Accept: */*" \
             -H "Icy-MetaData: 1" \
-            -H "Range: bytes=0-" \
-            --retry 5 \
-            --retry-delay 2 \
+            -e "http://anytvpro.cc:8080/" \
             -o "video.mp4" \
             "${{ github.event.inputs.video_url }}"
 
-      - name: 🚀 Upload to Hugging Face
+      - name: 🚀 Upload to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python3 -c "
           import os
           from huggingface_hub import HfApi
-          
-          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 1024:
+          if os.path.exists('video.mp4') and os.path.getsize('video.mp4') > 1000000:
               api = HfApi()
               api.upload_file(
                   path_or_fileobj='video.mp4',
@@ -53,6 +49,6 @@ jobs:
               )
               print('✅ سەرکەوتوو بوو!')
           else:
-              print('❌ شکستی هێنا: سێرڤەرەکە ڕێگەی نەدا فایلەکە دابگیرێت (401/403).')
+              print('❌ شکستی هێنا: فایلەکە یان دروست نەبووە یان قەبارەکەی زۆر بچووکە (401/403 Error)')
               exit(1)
           "
