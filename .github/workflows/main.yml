@@ -24,27 +24,24 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          # بەکارهێنانی ناو لە جیاتی ئایپی بۆ ناسینەوەی خێراتر
-          # زیادکردنی --reset بۆ پاککردنەوەی هەر تێکچوونێکی پێشوو
-          args: --exit-node=xiaomi-pad-7 --exit-node-allow-lan-access --accept-routes --reset
+          # لێرە ئایپییە تایلکێڵەکەی تابلێتەکەت دادەنێین (100.64.217.105)
+          # ئەمە جێگیرترە و ئیرۆری ناو (invalid value) نادات
+          args: --exit-node=100.64.217.105 --exit-node-allow-lan-access --accept-routes
 
-      - name: 🔍 Check Connection
+      - name: 🔍 Verify Connection
         run: |
-          # پشکنینی ئەوەی ئایا ئایپی گۆڕاوە بۆ ئایپی تابلێتەکە؟
-          echo "Checking Public IP..."
-          curl ifconfig.me
-          echo -e "\nTailscale status:"
+          echo "Checking IP through Tailscale Exit Node..."
+          # ئەمە پێت دەڵێت ئایپی ئێستای گیتهەب چییە (دەبێت هی تابلێتەکەت بێت)
+          curl -s https://ifconfig.me || echo "IP check failed, but continuing..."
           tailscale status
 
       - name: ⬇️ Fast Download
         run: |
-          # چاوەڕێکردنی کورت بۆ دڵنیایی لە ڕێککەوتنی Exit Node
-          sleep 10
+          sleep 5
           aria2c --user-agent="Any Tv Pro/2.23 (Android OS)" \
                  --max-connection-per-server=4 \
                  --split=4 \
                  --timeout=120 \
-                 --connect-timeout=60 \
                  -o "video.mp4" "${{ github.event.inputs.video_url }}"
 
       - name: 🚀 Upload to Hugging Face
@@ -61,7 +58,6 @@ jobs:
           file_name = '${{ github.event.inputs.file_name }}'
           
           if os.path.exists('video.mp4'):
-              print(f'📤 Sending to Hugging Face: {file_name}...')
               api.upload_file(
                   path_or_fileobj='video.mp4',
                   path_in_repo=file_name,
