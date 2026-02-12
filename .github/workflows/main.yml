@@ -24,24 +24,21 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          # لێرە ئایپییە تایلکێڵەکەی تابلێتەکەت دادەنێین (100.64.217.105)
-          # ئەمە جێگیرترە و ئیرۆری ناو (invalid value) نادات
-          args: --exit-node=100.64.217.105 --exit-node-allow-lan-access --accept-routes
+          # لێرە فەرمانی Exit Node-مان سڕییەوە!
+          # ئێستا ئینتەرنێتی تابلێتەکەت بەکارناهێنێت بۆ داگرتن
+          args: --accept-routes
 
-      - name: 🔍 Verify Connection
+      - name: ⬇️ Fast Download (GitHub Network)
         run: |
-          echo "Checking IP through Tailscale Exit Node..."
-          # ئەمە پێت دەڵێت ئایپی ئێستای گیتهەب چییە (دەبێت هی تابلێتەکەت بێت)
-          curl -s https://ifconfig.me || echo "IP check failed, but continuing..."
-          tailscale status
-
-      - name: ⬇️ Fast Download
-        run: |
-          sleep 5
+          # بەکارهێنانی ئینتەرنێتی خێرای گیتهەب بە ١٦ هێڵ
+          # ئەگەر سێرڤەرەکە بلۆکی نەکردبێت، لێرە بە خێراییەکی شێتانە دایدەگرێت
           aria2c --user-agent="Any Tv Pro/2.23 (Android OS)" \
-                 --max-connection-per-server=4 \
-                 --split=4 \
-                 --timeout=120 \
+                 --max-connection-per-server=16 \
+                 --split=16 \
+                 --min-split-size=1M \
+                 --max-overall-download-limit=0 \
+                 --connect-timeout=60 \
+                 --timeout=60 \
                  -o "video.mp4" "${{ github.event.inputs.video_url }}"
 
       - name: 🚀 Upload to Hugging Face
@@ -58,6 +55,7 @@ jobs:
           file_name = '${{ github.event.inputs.file_name }}'
           
           if os.path.exists('video.mp4'):
+              print(f'📤 Sending {file_name} to Hugging Face...')
               api.upload_file(
                   path_or_fileobj='video.mp4',
                   path_in_repo=file_name,
