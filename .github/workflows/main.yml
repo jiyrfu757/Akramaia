@@ -1,14 +1,14 @@
-name: AnyTV_To_HuggingFace
+name: AnyTV_To_HuggingFace_Safe
 on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: 'Direct Link (AnyTV)'
+        description: 'لینکی AnyTV'
         required: true
       file_name:
-        description: 'ناوی فایلەکە لەناو Hugging Face'
+        description: 'ناوی فایلەکە'
         required: true
-        default: 'anytv_movie.mp4'
+        default: 'video.mp4'
 
 jobs:
   upload_job:
@@ -20,10 +20,16 @@ jobs:
           sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: ⬇️ Fast Download (AnyTV Specific)
+      - name: 🌐 Connect Tailscale (Mobile IP)
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          # لێرە ناوی تابلێتەکەت وەک خۆی نووسراوە
+          args: --exit-node=xiaomi-pad-7
+
+      - name: ⬇️ Fast Download
         run: |
-          # لێرەدا User-Agent مان زیاد کردووە بۆ ئەوەی سێرڤەرەکە نەمانناسێتەوە
-          # هەروەها max-connection مان کەم کردووەتەوە بۆ 4 چونکە سێرڤەرە کوردییەکان لە سەروو ئەوەوە بلۆکت دەکەن
+          # ئێستا ئێریا تو ئایپی تابلێتەکەت بەکاردێنێت
           aria2c --user-agent="Any Tv Pro/2.23 (Android OS)" \
                  --max-connection-per-server=4 \
                  --split=4 \
@@ -38,10 +44,6 @@ jobs:
           from huggingface_hub import HfApi
           
           token = os.getenv('HF_TOKEN')
-          if not token:
-              print('❌ Error: HF_TOKEN is missing!')
-              exit(1)
-              
           api = HfApi()
           repo_id = 'Sarkoakram/sarko761'
           file_name = '${{ github.event.inputs.file_name }}'
@@ -57,6 +59,6 @@ jobs:
               )
               print('✅ Done!')
           else:
-              print('❌ Download failed, video.mp4 not found.')
+              print('❌ Download failed!')
               exit(1)
           "
