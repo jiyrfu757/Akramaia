@@ -20,23 +20,30 @@ jobs:
           sudo apt-get install -y aria2 -qq
           pip install -q huggingface_hub
 
-      - name: 🌐 Connect Tailscale (Mobile IP)
+      - name: 🌐 Connect Tailscale
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          # لێرە ئایپی تابلێتەکەت بەکاردێنین کە جێگیرترە
-          # زیادکردنی --snat-subnet-routes=false بۆ دڵنیایی لە کارکردنی Exit Node
-          args: --exit-node=100.64.217.105 --exit-node-allow-lan-access --accept-routes
+          # بەکارهێنانی ناو لە جیاتی ئایپی بۆ ناسینەوەی خێراتر
+          # زیادکردنی --reset بۆ پاککردنەوەی هەر تێکچوونێکی پێشوو
+          args: --exit-node=xiaomi-pad-7 --exit-node-allow-lan-access --accept-routes --reset
+
+      - name: 🔍 Check Connection
+        run: |
+          # پشکنینی ئەوەی ئایا ئایپی گۆڕاوە بۆ ئایپی تابلێتەکە؟
+          echo "Checking Public IP..."
+          curl ifconfig.me
+          echo -e "\nTailscale status:"
+          tailscale status
 
       - name: ⬇️ Fast Download
         run: |
-          # بەکارهێنانی aria2 بە هەمان ڕێگەی پێشوو
-          # لێرە کەمێک وەستان (sleep) دادەنێین تا دڵنیابین VPNەکە بەتەواوی جێگیر بووە
-          sleep 5
+          # چاوەڕێکردنی کورت بۆ دڵنیایی لە ڕێککەوتنی Exit Node
+          sleep 10
           aria2c --user-agent="Any Tv Pro/2.23 (Android OS)" \
                  --max-connection-per-server=4 \
                  --split=4 \
-                 --timeout=60 \
+                 --timeout=120 \
                  --connect-timeout=60 \
                  -o "video.mp4" "${{ github.event.inputs.video_url }}"
 
@@ -64,6 +71,6 @@ jobs:
               )
               print('✅ Done!')
           else:
-              print('❌ Download failed! فایلەکە پەیدا نەکرا.')
+              print('❌ Download failed!')
               exit(1)
           "
